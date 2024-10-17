@@ -12,13 +12,25 @@ from rag_methods import (
 
 dotenv.load_dotenv()
 
-# Configuration de la page
+# Configuration de la page avec des éléments visuels
 st.set_page_config(
     page_title="Recherche et Analyse de Poèmes avec LLM", 
     page_icon="📚", 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
+
+# Titre principal avec style
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Recherche et Analyse de Poèmes avec LLM</h1>", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# Ajout de texte d'introduction
+st.markdown("""
+<div style='text-align: center;'>
+    <p>Utilisez cette application pour trouver des poèmes selon un thème et les analyser grâce à un modèle de langage.</p>
+    <p style='color: #6c757d;'>Propulsé par GPT-4 et PoetryDB</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
 api_key = "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"
@@ -46,10 +58,12 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Bienvenue ! Je peux vous aider à trouver des poèmes et à en discuter ou les analyser."}
     ]
 
-# Affichage des messages de la session
+# Affichage des messages de la session avec mise en forme
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    role = "Utilisateur" if message["role"] == "user" else "Assistant"
+    color = "#3498db" if message["role"] == "user" else "#2ecc71"
+    st.markdown(f"<div style='background-color:{color};padding:10px;border-radius:10px;color:white;'><strong>{role}:</strong><br>{message['content']}</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # Saisie d'un nouveau message par l'utilisateur
 if prompt := st.chat_input("Votre message"):
