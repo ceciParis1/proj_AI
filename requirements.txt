@@ -42,7 +42,6 @@ GitPython==3.1.43
 google-auth==2.34.0
 googleapis-common-protos==1.65.0
 greenlet==3.1.0
-scikit-learn
 grpcio==1.66.1
 h11==0.14.0
 httpcore==1.0.5
