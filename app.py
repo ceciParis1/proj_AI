@@ -19,9 +19,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
-api_key = "sk-zOGMVhGdlWR_RehPscj0d2KVx9Csi1S0gp_x8Rmt3GT3BlbkFJaqcM7GWiZmVnCSL4Mkm43wxIzQ2ADT1g1_WK1MoUUA"
-openai.api_key = api_key  # Définir la clé API OpenAI pour l'utilisation d'embeddings
+# Insérer la clé API
+api_key = os.getenv("OPENAI_API_KEY")  # Assurez-vous que votre clé est chargée depuis .env
+openai.api_key = api_key
 
 # Initialiser le modèle OpenAI
 llm_stream = ChatOpenAI(
@@ -49,7 +49,6 @@ def get_poems_from_poetrydb(theme=None, linecount=None):
     base_url = "https://poetrydb.org/"
     url = ""
     
-    # Construire l'URL en fonction des paramètres fournis
     if theme and linecount:
         url = base_url + f"lines/{linecount};theme/{theme}"
     elif theme:
@@ -74,6 +73,7 @@ def get_embedding(text):
 
 # Quand l'utilisateur clique sur "Rechercher"
 if prompt := st.chat_input("Thème du poème (ex. amour)"):
+
     linecount = st.number_input("Longueur des vers (en nombre de lignes, optionnel)", min_value=1, step=1)
     st.session_state.messages.append({"role": "user", "content": f"Recherche de poèmes sur le thème '{prompt}' avec {linecount} vers."})
 
