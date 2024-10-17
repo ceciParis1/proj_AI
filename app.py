@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 # Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
-api_key = "sk-zOGMVhGdlWR_RehPscj0d2KVx9Csi1S0gp_x8Rmt3GT3BlbkFJaqcM7GWiZmVnCSL4Mkm43wxIzQ2ADT1g1_WK1MoUUA"
+api_key = "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"
 
 # Vérifier si la clé est bien présente
 if not api_key:
