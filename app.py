@@ -12,23 +12,6 @@ from rag_methods import (
 
 dotenv.load_dotenv()
 
-# Récupérer la clé API OpenAI
-api_key = os.getenv("OPENAI_API_KEY")
-
-# Test pour vérifier la récupération de la clé API
-if not api_key:
-    st.error("Clé API OpenAI non trouvée. Vérifiez les secrets dans Streamlit Cloud.")
-else:
-    st.success("Clé API OpenAI chargée avec succès : " + api_key[:10] + "********")
-
-# Initialiser le modèle OpenAI
-llm_stream = ChatOpenAI(
-    api_key=api_key,  # Utilisation de la clé API
-    model_name="gpt-4",  # Modèle GPT-4
-    temperature=0.7,
-    streaming=True,
-)
-
 # Configuration de la page
 st.set_page_config(
     page_title="Recherche et Analyse de Poèmes avec LLM", 
@@ -37,7 +20,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialisation
+# Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
+api_key = "sk-zOGMVhGdlWR_RehPscj0d2KVx9Csi1S0gp_x8Rmt3GT3BlbkFJaqcM7GWiZmVnCSL4Mkm43wxIzQ2ADT1g1_WK1MoUUA"
+
+# Vérifier si la clé est bien présente
+if not api_key:
+    st.error("Clé API OpenAI manquante. Assurez-vous de l'insérer correctement dans le fichier app.py.")
+else:
+    st.success("Clé API OpenAI chargée avec succès.")
+
+# Initialiser le modèle OpenAI
+llm_stream = ChatOpenAI(
+    api_key=api_key,  # Utiliser la clé API ici
+    model_name="gpt-4",
+    temperature=0.7,
+    streaming=True,
+)
+
+# Initialisation de la session
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
@@ -51,20 +51,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-
-# Sidebar pour la recherche de poèmes
-with st.sidebar:
-    st.header("Rechercher des poèmes")
-    theme = st.text_input("Thème du poème (optionnel)")
-    linecount = st.number_input("Longueur des vers (en nombre de lignes, optionnel)", min_value=1, step=1)
-    search_button = st.button("Rechercher des poèmes")
-
 # Quand l'utilisateur clique sur "Rechercher"
-if search_button:
-    st.session_state.messages.append({"role": "user", "content": f"Recherche de poèmes sur le thème '{theme}' avec {linecount} vers."})
+if prompt := st.chat_input("Thème du poème (ex. amour)"):
+    linecount = st.number_input("Longueur des vers (en nombre de lignes, optionnel)", min_value=1, step=1)
+    st.session_state.messages.append({"role": "user", "content": f"Recherche de poèmes sur le thème '{prompt}' avec {linecount} vers."})
 
     # Recherche de poèmes via PoetryDB
-    poems = get_poems_from_poetrydb(theme=theme, linecount=linecount)
+    poems = get_poems_from_poetrydb(theme=prompt, linecount=linecount)
 
     if poems:
         for poem in poems:
@@ -74,13 +67,17 @@ if search_button:
 
         # Utilisation du LLM pour fournir une analyse littéraire
         with st.chat_message("assistant"):
-            user_prompt = f"Voici un poème sur {theme} avec {linecount} vers. Peux-tu en faire une analyse littéraire ?"
+            user_prompt = f"Voici un poème sur {prompt} avec {linecount} vers. Peux-tu en faire une analyse littéraire ?"
             messages = [HumanMessage(content=user_prompt)]
-            
+
             full_response = ""
+            placeholder = st.empty()  # Créer un espace réservé pour accumuler et afficher les résultats
+
             for chunk in llm_stream.stream(messages):
-                full_response += chunk.content
-                st.markdown(chunk.content)
+                full_response += chunk.content  # Ajout du texte sans espaces supplémentaires
+                # Ajout d'une mise en forme du poème avec deux sauts de ligne pour séparer les strophes
+                formatted_text = full_response.replace('\n', '  \n')  
+                placeholder.markdown(formatted_text)  # Affichage du texte accumulé progressivement avec la bonne mise en forme
 
             st.session_state.messages.append({"role": "assistant", "content": full_response})
     else:
@@ -96,6 +93,20 @@ if prompt := st.chat_input("Votre message"):
 
     # Réponse du LLM
     with st.chat_message("assistant"):
-        messages = [HumanMessage(content=prompt)]
-        response = stream_llm_response(llm_stream, messages)
-        st.markdown(response)
+        # Vérification que le prompt n'est pas vide
+        if prompt:
+            messages = [HumanMessage(content=prompt)]
+            full_response = ""
+            placeholder = st.empty()  # Espace réservé pour la réponse
+
+            # Itération sur le générateur pour afficher la réponse du LLM
+            for chunk in stream_llm_response(llm_stream, messages):
+                full_response += chunk  # Ajout du chunk sans espace supplémentaire
+                # Ajout de la mise en forme avec des retours à la ligne appropriés
+                formatted_text = full_response.replace('\n', '  \n')
+                placeholder.markdown(formatted_text)  # Affichage du chunk dans l'interface
+
+            # Enregistrement de la réponse complète dans l'état de session
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+        else:
+            st.warning("Veuillez saisir un message avant de soumettre.")
