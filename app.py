@@ -15,8 +15,11 @@ dotenv.load_dotenv()
 # Récupérer la clé API OpenAI
 api_key = os.getenv("OPENAI_API_KEY")
 
+# Test pour vérifier la récupération de la clé API
 if not api_key:
-    raise ValueError("Clé API OpenAI manquante. Assurez-vous qu'elle est définie dans les secrets Streamlit Cloud.")
+    st.error("Clé API OpenAI non trouvée. Vérifiez les secrets dans Streamlit Cloud.")
+else:
+    st.success("Clé API OpenAI chargée avec succès : " + api_key[:10] + "********")
 
 # Initialiser le modèle OpenAI
 llm_stream = ChatOpenAI(
