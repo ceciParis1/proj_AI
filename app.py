@@ -33,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
-api_key = "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"
+api_key = "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"
 
 # Vérifier si la clé est bien présente
 if not api_key:
