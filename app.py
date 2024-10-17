@@ -33,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
-api_key = "streamlit run "C:\Users\ojnav\Documents\DU_Sorbonna_Data_Analytics\Générative AI\VERSION\app.py""
+api_key = "streamlit run "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"
 
 # Vérifier si la clé est bien présente
 if not api_key:
