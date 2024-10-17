@@ -2,12 +2,13 @@ import streamlit as st
 import os
 import dotenv
 import uuid
-import requests
-import openai
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+from rag_methods import (
+    get_poems_from_poetrydb,
+    stream_llm_response,
+    stream_llm_rag_response,
+)
 
 dotenv.load_dotenv()
 
@@ -19,13 +20,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Insérer la clé API
-api_key = os.getenv("OPENAI_API_KEY")  # Assurez-vous que votre clé est chargée depuis .env
-openai.api_key = api_key
+# Insérer directement la clé API ici (c'est temporaire et non recommandé pour la production)
+api_key = "sk-zOGMVhGdlWR_RehPscj0d2KVx9Csi1S0gp_x8Rmt3GT3BlbkFJaqcM7GWiZmVnCSL4Mkm43wxIzQ2ADT1g1_WK1MoUUA"
+
+# Vérifier si la clé est bien présente
+if not api_key:
+    st.error("Clé API OpenAI manquante. Assurez-vous de l'insérer correctement dans le fichier app.py.")
+else:
+    st.success("Clé API OpenAI chargée avec succès.")
 
 # Initialiser le modèle OpenAI
 llm_stream = ChatOpenAI(
-    api_key=api_key,
+    api_key=api_key,  # Utiliser la clé API ici
     model_name="gpt-4",
     temperature=0.7,
     streaming=True,
@@ -40,40 +46,13 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Bienvenue ! Je peux vous aider à trouver des poèmes et à en discuter ou les analyser."}
     ]
 
-# Stockage des poèmes et leurs embeddings
-poem_embeddings = []
-poems_data = []
-
-# Fonction pour récupérer des poèmes depuis PoetryDB
-def get_poems_from_poetrydb(theme=None, linecount=None):
-    base_url = "https://poetrydb.org/"
-    url = ""
-    
-    if theme and linecount:
-        url = base_url + f"lines/{linecount};theme/{theme}"
-    elif theme:
-        url = base_url + f"theme/{theme}"
-    elif linecount:
-        url = base_url + f"linecount/{linecount}"
-    else:
-        url = base_url + "random"
-
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"Erreur lors de la requête: {response.status_code}")
-        return []
-
-# Fonction pour obtenir l'embedding d'un texte
-def get_embedding(text):
-    response = openai.Embedding.create(input=text, model="text-embedding-ada-002")
-    return response['data'][0]['embedding']
+# Affichage des messages de la session
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 # Quand l'utilisateur clique sur "Rechercher"
 if prompt := st.chat_input("Thème du poème (ex. amour)"):
-
     linecount = st.number_input("Longueur des vers (en nombre de lignes, optionnel)", min_value=1, step=1)
     st.session_state.messages.append({"role": "user", "content": f"Recherche de poèmes sur le thème '{prompt}' avec {linecount} vers."})
 
@@ -85,14 +64,6 @@ if prompt := st.chat_input("Thème du poème (ex. amour)"):
             with st.chat_message("assistant"):
                 st.markdown(f"**{poem['title']}**\n\n" + "\n".join(poem['lines']))
                 st.session_state.messages.append({"role": "assistant", "content": f"**{poem['title']}**\n\n" + "\n".join(poem['lines'])})
-                
-                # Obtenir l'embedding pour le poème
-                poem_text = "\n".join(poem['lines'])
-                embedding = get_embedding(poem_text)
-                
-                # Stocker l'embedding et les données du poème
-                poem_embeddings.append(embedding)
-                poems_data.append(poem)
 
         # Utilisation du LLM pour fournir une analyse littéraire
         with st.chat_message("assistant"):
@@ -104,30 +75,14 @@ if prompt := st.chat_input("Thème du poème (ex. amour)"):
 
             for chunk in llm_stream.stream(messages):
                 full_response += chunk.content  # Ajout du texte sans espaces supplémentaires
+                # Ajout d'une mise en forme du poème avec deux sauts de ligne pour séparer les strophes
                 formatted_text = full_response.replace('\n', '  \n')  
-                placeholder.markdown(formatted_text)
+                placeholder.markdown(formatted_text)  # Affichage du texte accumulé progressivement avec la bonne mise en forme
 
             st.session_state.messages.append({"role": "assistant", "content": full_response})
     else:
         st.warning("Aucun poème trouvé avec les critères spécifiés.")
         st.session_state.messages.append({"role": "assistant", "content": "Aucun poème trouvé avec les critères spécifiés."})
-
-# Recherche de poèmes similaires
-if prompt := st.chat_input("Chercher des poèmes similaires"):
-    # Obtenir l'embedding pour la requête de l'utilisateur
-    query_embedding = get_embedding(prompt)
-
-    # Calculer les similarités
-    similarities = cosine_similarity([query_embedding], poem_embeddings)
-
-    # Trouver les indices des poèmes les plus similaires
-    similar_poem_indices = np.argsort(similarities[0])[::-1][:5]  # Récupérer les 5 poèmes les plus similaires
-
-    st.chat_message("assistant").markdown("Voici les poèmes similaires :")
-    for index in similar_poem_indices:
-        poem = poems_data[index]
-        st.markdown(f"**{poem['title']}**\n\n" + "\n".join(poem['lines']))
-        st.session_state.messages.append({"role": "assistant", "content": f"**{poem['title']}**\n\n" + "\n".join(poem['lines'])})
 
 # Saisie d'un nouveau message par l'utilisateur
 if prompt := st.chat_input("Votre message"):
@@ -138,16 +93,20 @@ if prompt := st.chat_input("Votre message"):
 
     # Réponse du LLM
     with st.chat_message("assistant"):
+        # Vérification que le prompt n'est pas vide
         if prompt:
             messages = [HumanMessage(content=prompt)]
             full_response = ""
             placeholder = st.empty()  # Espace réservé pour la réponse
 
+            # Itération sur le générateur pour afficher la réponse du LLM
             for chunk in stream_llm_response(llm_stream, messages):
-                full_response += chunk
+                full_response += chunk  # Ajout du chunk sans espace supplémentaire
+                # Ajout de la mise en forme avec des retours à la ligne appropriés
                 formatted_text = full_response.replace('\n', '  \n')
-                placeholder.markdown(formatted_text)
+                placeholder.markdown(formatted_text)  # Affichage du chunk dans l'interface
 
+            # Enregistrement de la réponse complète dans l'état de session
             st.session_state.messages.append({"role": "assistant", "content": full_response})
         else:
             st.warning("Veuillez saisir un message avant de soumettre.")
