@@ -12,6 +12,20 @@ from rag_methods import (
 
 dotenv.load_dotenv()
 
+# Récupérer la clé API OpenAI
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    raise ValueError("Clé API OpenAI manquante. Assurez-vous qu'elle est définie dans les secrets Streamlit Cloud.")
+
+# Initialiser le modèle OpenAI
+llm_stream = ChatOpenAI(
+    api_key=api_key,  # Utilisation de la clé API
+    model_name="gpt-4",  # Modèle GPT-4
+    temperature=0.7,
+    streaming=True,
+)
+
 # Configuration de la page
 st.set_page_config(
     page_title="Recherche et Analyse de Poèmes avec LLM", 
@@ -34,13 +48,6 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Configuration du LLM (ChatGPT)
-llm_stream = ChatOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),  # Clé API OpenAI
-    model_name="gpt-4",  # Modèle utilisé, ici GPT-4
-    temperature=0.7,
-    streaming=True,
-)
 
 # Sidebar pour la recherche de poèmes
 with st.sidebar:
